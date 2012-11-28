@@ -23,26 +23,6 @@ default_value 'the default'
 arg_name 'The name of the argument'
 flag [:f,:flagname]
 
-desc 'Describe markets here'
-arg_name 'Describe arguments to markets here'
-command :markets do |c|
-  c.desc 'Describe a switch to markets'
-  c.switch :s
-
-  c.desc 'Describe a flag to markets'
-  c.default_value 'default'
-  c.flag :f
-  c.action do |global_options,options,args|
-
-    # Your command logic here
-     
-    # If you have any errors, just raise them
-    # raise "that command made no sense"
-
-    puts "markets command ran"
-  end
-end
-
 pre do |global,command,options,args|
   # Pre logic here
   # Return true to proceed; false to abourt and not call the
