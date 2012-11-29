@@ -11,37 +11,60 @@ program_desc "Command Line app for accessing the pro publica free the files proj
 
 desc "Swing State Markets"
 command :markets do |c|
-
-  c.desc "Get details for a market by slug"
-  c.action do |global_options,options,args|
-    rows = []
-    market = JSON.parse(RestClient.get("https://projects.propublica.org/free-the-files/markets/#{args.first}.json"))
-    market["market"]["stations"].each do |station|
-      filings_string = ""
-      station["freed_files"].each do |file|
-        filings_string.concat("#{file["filing"]["committee"]["name"]} (#{currencify(file["filing"]["gross_amount"])})\n")
-      end
-      rows << [station["callsign"], filings_string]
-    end
-    output_table = Terminal::Table.new :title => "#{market["market"]["name"]} Filings", :headings => ["callsign","filing Totals"], :rows => rows
-    puts output_table
-  end
+  c.switch [:s, :sum]
 
   c.desc "List all swing markets"
   c.command :all do |all|
     all.action do |global_options,options,args|
       markets = JSON.parse(RestClient.get("https://projects.propublica.org/free-the-files/markets.json"))
+      rows = []
       markets.each do |m|
         if m["market"]["freed_ct"] > 0
           percent_freed = m["market"]["filings_ct"] / m["market"]["freed_ct"]
         else
           percent_freed = 0
         end
-
-        puts "#{m["market"]["titleized_name"]} (#{percent_freed}%)"
+        rows.push([m["market"]["slug"], m["market"]["titleized_name"], percent_freed])
       end
+
+      puts Terminal::Table.new :headings => ["slug", "market", "percent freed"], :rows => rows
     end
   end
+
+  c.desc "Get details for a market by slug"
+  c.action do |global_options,options,args|
+    help_now!('A slug is required to get market info.  Try running "influence markets all" for a list of markets') if args.empty?
+
+    rows = []
+    market = JSON.parse(RestClient.get("https://projects.propublica.org/free-the-files/markets/#{args.first}.json"))
+    market["market"]["stations"].each do |station|
+      filings_string = ""
+
+      if options[:sum]
+        pacs = station["freed_files"].map { |p| p["filing"]["committee"]["name"] }.uniq
+        pac_totals = []
+        pacs.each do |pac|
+          pac_total = 0
+          station["freed_files"].each do |file|
+            pac_total += file["filing"]["gross_amount"] if pac == file["filing"]["committee"]["name"]
+          end
+          pac_totals.push(pac_total)
+        end
+
+        pacs.each_with_index do |pac, index|
+          filings_string.concat("#{pac} (#{currencify(pac_totals[index])})\n")
+        end
+      else
+        station["freed_files"].each do |file|
+          filings_string.concat("#{file["filing"]["committee"]["name"]} (#{currencify(file["filing"]["gross_amount"])})\n")
+        end
+      end
+
+      rows << [station["callsign"], filings_string]
+    end
+    puts Terminal::Table.new :title => "#{market["market"]["name"]} Filings", :headings => ["callsign","filing Totals"], :rows => rows
+  end
+
 
   
 end
